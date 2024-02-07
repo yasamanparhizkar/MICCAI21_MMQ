@@ -15,3 +15,9 @@ mmq_maml/data
 mmq_maml/features
 mmq_maml/saved_models
 mmq_maml/res
+
+# Ignore the environment
+.env/
+
+# Ignore package installation files
+packages/

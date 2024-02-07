@@ -124,7 +124,10 @@ def main(args):
     ]
 
     # initial model
-    device = torch.device('cuda')
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
     maml = Meta(args, config).to(device)
 
     model_dir = args.input + '/VQARAD_maml%d_miccai2021_newmethod_%dway_%dshot_t%d' % (args.imgsz, args.n_way, args.k_spt, args.t_dst - 1)
