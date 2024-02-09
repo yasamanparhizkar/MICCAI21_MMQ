@@ -1,7 +1,6 @@
 """
 This code is modified based on Jin-Hwa Kim's repository (Bilinear Attention Networks - https://github.com/jnhwkim/ban-vqa)
 """
-# this is a test comment
 import os
 import argparse
 import torch
