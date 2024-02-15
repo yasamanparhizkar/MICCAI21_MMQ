@@ -92,6 +92,8 @@ def train(args, model, train_loader, eval_loader, num_epochs, output, opt=None, 
             q = q.to(device)
             a = a.to(device)
             sample = [v, q, a]
+            print('\n\nYASAMAN\nv[0].size()', v[0].size())
+            print('\n\nYASAMAN\nv[1].size()', v[1].size())
 
             if i < num_batches - 1 and (i + 1) % update_freq > 0:
                 trainer.train_step(sample, update_params=False)

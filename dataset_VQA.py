@@ -166,6 +166,11 @@ class VQAFeatureDataset(Dataset):
             images_path = os.path.join(dataroot, 'pytorch_images'+ str(args.img_size) + '.pkl')
             print('loading MAML image data from file: '+ images_path)
             self.maml_images_data = cPickle.load(open(images_path, 'rb'))
+        # load image data for PubMedCLIP
+        if args.pubmedclip:
+            images_path = os.path.join(dataroot, 'images250x250.pkl')
+            print('loading PubMedCLIP image data from file: '+ images_path)
+            self.pmc_images_data = cPickle.load(open(images_path, 'rb'))
         # load image data for Auto-encoder module
         if args.autoencoder:
             # TODO: load images
@@ -178,12 +183,16 @@ class VQAFeatureDataset(Dataset):
         # tokenization
         self.tokenize(question_len)
         self.tensorize()
-        if args.autoencoder and args.maml:
+        if args.autoencoder and args.maml and args.pubmedclip:
+            # self.v_dim = args.feat_dim * len(args.maml_nums) + args.feat_dim + args.feat_dim
+            self.v_dim = args.feat_dim * len(args.maml_nums) + args.feat_dim
+        elif args.autoencoder and args.maml:
             self.v_dim = args.feat_dim * len(args.maml_nums) + args.feat_dim
         elif args.autoencoder:
             self.v_dim = args.feat_dim
         elif args.maml:
             self.v_dim = args.feat_dim * len(args.maml_nums)
+        print('\n\nYASAMAN\nself.v_dim', self.v_dim)
     def tokenize(self, max_length=12):
         """Tokenizes the questions.
 
@@ -211,6 +220,9 @@ class VQAFeatureDataset(Dataset):
             else:
                 self.ae_images_data = torch.stack(self.ae_images_data)
             self.ae_images_data = self.ae_images_data.type('torch.FloatTensor')
+        if self.args.pubmedclip:
+            self.pmc_images_data = torch.from_numpy(self.pmc_images_data)
+            self.pmc_images_data = self.pmc_images_data.type('torch.FloatTensor')
         for entry in self.entries:
             question = torch.from_numpy(np.array(entry['q_token']))
             entry['q_token'] = question
@@ -235,7 +247,10 @@ class VQAFeatureDataset(Dataset):
         answer_type = entry['answer_type']
         question_type = entry['question_type']
 
-        image_data = [0, 0]
+        if self.args.pubmedclip:
+            image_data = [0, 0, 0]
+        else:
+            image_data = [0, 0]
         if self.args.maml:
             if 'RAD' in self.args.VQA_dir:
                 maml_images_data = self.maml_images_data[entry['image']].reshape(self.args.img_size * self.args.img_size)
@@ -245,6 +260,9 @@ class VQAFeatureDataset(Dataset):
         if self.args.autoencoder:
             ae_images_data = self.ae_images_data[entry['image']].reshape(128*128)
             image_data[1] = ae_images_data
+        if self.args.pubmedclip:
+            pmc_image_data = self.pmc_images_data[entry['image']].reshape(3*250*250)
+            image_data[2] = pmc_image_data
 
         if None!=answer:
             labels = answer['labels']

@@ -30,6 +30,8 @@ class BiAttention(nn.Module):
     def forward_all(self, v, q, v_mask=True):
         v_num = v.size(1)
         q_num = q.size(1)
+        print('\n\nYASAMAN\nq.size()', q.size())
+        print('\n\nYASAMAN\nv.size()', v.size())
         logits = self.logits(v, q) # b x g x v x q
 
         if v_mask:

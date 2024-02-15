@@ -104,6 +104,10 @@ def parse_args():
                         help='the maml_model_path we use')
     parser.add_argument('--maml_nums', type=str, default='0,1,2,3,4,5',
                         help='the numbers of maml models')
+    
+    # PubMedCLIP vision encoder
+    parser.add_argument('--pubmedclip', action='store_true', default=False,
+                        help='Use PubMedCLIP encoders?')
 
     # Return args
     args = parser.parse_args()
@@ -171,7 +175,7 @@ def get_result_pathVQA(model, dataloader, device, args):
     result['all']['score'] = result['all']['correct'] / result['all']['total']
     return result, answers_list
 
-def get_result_RAD(model, dataloader, device, args):
+def get_result_RAD(model, dataloader, device, args, pubmed_v_emb):
     keys = ['count', 'real', 'true', 'real_percent', 'score', 'score_percent']
     question_types_result = dict((i, dict((j, dict((k, 0.0) for k in keys)) for j in quesntion_types)) for i in answer_types)
     result = dict((i, dict((j, 0.0) for j in keys)) for i in answer_types)
@@ -184,15 +188,19 @@ def get_result_RAD(model, dataloader, device, args):
                 # v[0] = v[0].transpose(1, 3)
             if args.autoencoder:
                 v[1] = v[1].reshape(v[1].shape[0], 128, 128).unsqueeze(1)
+            if args.pubmedclip:
+                v[2] = v[2].reshape(v[2].shape[0], 3, 250, 250)
             v[0] = v[0].to(device)
             v[1] = v[1].to(device)
+            v[2] = v[2].to(device)
+            # print('\n\nYASAMAN\nv[2].size()', v[2].size())
             q = q.to(device)
             a = a.to(device)
             # inference and get logit
             if args.autoencoder:
-                features, _ = model(v, q)
+                features, _ = model(v, q, pubmed_v_emb)
             else:
-                features = model(v, q)
+                features = model(v, q, pubmed_v_emb)
             preds = model.classifier(features)
             final_preds = preds
             batch_score = compute_score_with_logits(final_preds, a.data).sum()
@@ -244,6 +252,16 @@ if __name__ == '__main__':
     model = getattr(base_model, constructor)(eval_dset, args)
     print(model)
     eval_loader = DataLoader(eval_dset, batch_size, shuffle=False, num_workers=0, pin_memory=True, collate_fn=utils.trim_collate)
+    v, q, a, ans_type, q_types, p_type = next(iter(eval_loader))
+    # print('len(v)', len(v))
+    # print('v[0].size()', v[0].size())
+    # print('v[1].size()', v[1].size())
+    # print('v[2].size()', v[2].size())
+    # print('q', q)
+    # print('a', a)
+    # print('ans_type', ans_type)
+    # print('q_types', q_types)
+    # print('p_type', p_type)
 
     def save_questiontype_results(outfile_path, quesntion_types_result):
         for i in quesntion_types_result:
@@ -253,6 +271,18 @@ if __name__ == '__main__':
         model_path = args.input + '/model_epoch%s.pth' % args.epoch
         print('loading %s' % model_path)
         model_data = torch.load(model_path)
+
+        # build and load pre-trained PubMedCLIP model
+        if args.pubmedclip:
+            import clip
+            CLIP_VISION_ENCODER = 'RN50'
+            dev = "cuda" if torch.cuda.is_available() else "cpu"
+            pubmed_v_emb, _ = clip.load(CLIP_VISION_ENCODER, jit=False, device=dev)
+            weight_path = args.input + '/../PubMedCLIP/PubMedCLIP_RN50.pth'
+            print('load initial weights PubMedCLIP from: %s'%(weight_path))
+            pubmed_v_emb_data = torch.load(weight_path)
+            pubmed_v_emb.load_state_dict(pubmed_v_emb_data['state_dict'])
+            pubmed_v_emb = pubmed_v_emb.float()
 
         # Comment because do not use multi gpu
         # model = nn.DataParallel(model)
@@ -264,7 +294,7 @@ if __name__ == '__main__':
             os.makedirs(args.output)
         if args.use_VQA:
             if 'RAD' in args.VQA_dir:
-                result, answers_list = get_result_RAD(model, eval_loader, args.device, args)
+                result, answers_list = get_result_RAD(model, eval_loader, args.device, args, pubmed_v_emb)
             else:
                 result, answers_list = get_result_pathVQA(model, eval_loader, args.device, args)
             outfile_path = args.output + '/' + args.input.split('/')[1]

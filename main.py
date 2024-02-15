@@ -115,6 +115,9 @@ def parse_args():
     parser.add_argument('--maml_nums', type=str, default='0,1,2,3,4,5',
                         help='the numbers of maml models')
 
+    # PubMedCLIP vision encoder
+    parser.add_argument('--pubmedclip', action='store_true', default=False,
+                        help='Use PubMedCLIP encoders?')
     # Return args
     args = parser.parse_args()
     return args

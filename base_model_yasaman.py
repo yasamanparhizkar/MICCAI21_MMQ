@@ -42,7 +42,7 @@ class BAN_Model(nn.Module):
         if args.autoencoder:
             self.ae_v_emb = ae_v_emb
             self.convert = nn.Linear(16384, args.feat_dim)
-    def forward(self, v, q, pubmed_v_emb=None):
+    def forward(self, v, q):
         """Forward
 
         v: [batch, num_objs, obj_dim]
@@ -53,10 +53,10 @@ class BAN_Model(nn.Module):
         """
         # get visual feature
         # print('\n\nYASAMAN\nlen(v)', len(v))
-        print('\n\nYASAMAN\ntype(v[0])', type(v[0]))
-        print('\n\nYASAMAN\nv[0].size()', v[0].size())
-        print('\n\nYASAMAN\ntype(v[1])', type(v[1]))
-        print('\n\nYASAMAN\nv[1].size()', v[1].size())
+        # print('\n\nYASAMAN\ntype(v[0])', type(v[0]))
+        # print('\n\nYASAMAN\nv[0].size()', v[0].size())
+        # print('\n\nYASAMAN\ntype(v[1])', type(v[1]))
+        # print('\n\nYASAMAN\nv[1].size()', v[1].size())
         if self.args.maml: # get maml feature
             # compute multiple maml embeddings and concatenate them
             if len(self.args.maml_nums) > 1:
@@ -67,28 +67,22 @@ class BAN_Model(nn.Module):
             else:
                 maml_v_emb = self.maml_v_emb(v[0]).unsqueeze(1)
             v_emb = maml_v_emb
-        print('\n\nYASAMAN\nv_emb.size() after maml', v_emb.size())
+        # print('\n\nYASAMAN\nv_emb.size() after maml', v_emb.size())
         if self.args.autoencoder: # get dae feature
             encoder = self.ae_v_emb.forward_pass(v[1])
             decoder = self.ae_v_emb.reconstruct_pass(encoder)
             ae_v_emb = encoder.view(encoder.shape[0], -1)
             ae_v_emb = self.convert(ae_v_emb).unsqueeze(1)
             v_emb = ae_v_emb
-        print('\n\nYASAMAN\nv_emb.size() after ae', v_emb.size())
-        if self.args.pubmedclip:
-            pmc_v_emb = pubmed_v_emb.encode_image(v[2]).unsqueeze(1)
-            # v_emb =  pmc_v_emb[:, :, :192]
-            # v_emb = torch.cat((pmc_v_emb[:, :, :128], ae_v_emb), 2)
-            # v_emb = torch.cat((maml_v_emb, pmc_v_emb[:, :, :64]), 2)
-            v_emb = torch.cat((pmc_v_emb, ae_v_emb), 2)
-        if self.args.maml and self.args.autoencoder and not self.args.pubmedclip: # concatenate maml feature with dae feature
+        # print('\n\nYASAMAN\nv_emb.size() after ae', v_emb.size())
+        if self.args.maml and self.args.autoencoder: # concatenate maml feature with dae feature
             v_emb = torch.cat((maml_v_emb, ae_v_emb), 2)
-        print('\n\nYASAMAN\nv_emb.size()', v_emb.size())
+        # print('\n\nYASAMAN\nv_emb.size()', v_emb.size())
         # get lextual feature
         w_emb = self.w_emb(q)
-        print('\n\nYASAMAN\nw_emb.size()', w_emb.size())
+        # print('\n\nYASAMAN\nw_emb.size()', w_emb.size())
         q_emb = self.q_emb.forward_all(w_emb) # [batch, q_len, q_dim]
-        print('\n\nYASAMAN\nq_emb.size()', q_emb.size())
+        # print('\n\nYASAMAN\nq_emb.size()', q_emb.size())
         # Attention
         b_emb = [0] * self.glimpse
         att, logits = self.v_att.forward_all(v_emb, q_emb) # b x g x v x q
@@ -164,7 +158,7 @@ class SAN_Model(nn.Module):
         return self.classifier(input_feats)
 
 # Build BAN model
-def build_BAN(dataset, args, priotize_using_counter=False):
+def build_BAN_yasaman(dataset, args, priotize_using_counter=False):
     # init word embedding module, question embedding module, and Attention network
     w_emb = WordEmbedding(dataset.dictionary.ntoken, 300, .0, args.op)
     q_emb = QuestionEmbedding(300 if 'c' not in args.op else 600, args.num_hid, 1, False, .0,  args.rnn)
@@ -217,10 +211,7 @@ def build_BAN(dataset, args, priotize_using_counter=False):
     classifier = SimpleClassifier(
         args.num_hid, args.num_hid * 2, dataset.num_ans_candidates, args)
     # contruct VQA model and return
-    if args.maml and args.autoencoder and args.pubmedclip:
-        return BAN_Model(dataset, w_emb, q_emb, v_att, b_net, q_prj, c_prj, classifier, counter, args, maml_v_emb,
-                         ae_v_emb)
-    elif args.maml and args.autoencoder:
+    if args.maml and args.autoencoder:
         return BAN_Model(dataset, w_emb, q_emb, v_att, b_net, q_prj, c_prj, classifier, counter, args, maml_v_emb,
                          ae_v_emb)
     elif args.maml:
@@ -232,7 +223,7 @@ def build_BAN(dataset, args, priotize_using_counter=False):
     return BAN_Model(dataset, w_emb, q_emb, v_att, b_net, q_prj, c_prj, classifier, counter, args, None, None)
 
 # Build SAN model
-def build_SAN(dataset, args):
+def build_SAN_yasaman(dataset, args):
     # init word embedding module, question embedding module, and Attention network
     w_emb = WordEmbedding(dataset.dictionary.ntoken, 300, 0.0, args.op)
     q_emb = QuestionEmbedding(300 if 'c' not in args.op else 600, args.num_hid, 1, False, 0.0, args.rnn)
