@@ -302,7 +302,7 @@ def tfidf_loading(use_tfidf, w_emb, args):
                 print("Load embedding tfidf and weights from file successfully")
             else:
                 print("Embedding tfidf and weights haven't been saving before")
-                tfidf, weights = dataset_VQA.tfidf_from_questions(['train', 'val'], args, dict)
+                tfidf, weights = dataset_VQA.tfidf_from_questions(['train', 'test'], args, dict)
                 w_emb.init_embedding(os.path.join(args.VQA_dir, 'glove6b_init_300d.npy'), tfidf, weights)
                 with open(os.path.join(args.VQA_dir ,'embed_tfidf_weights.pkl'), 'wb') as f:
                     torch.save(w_emb, f)

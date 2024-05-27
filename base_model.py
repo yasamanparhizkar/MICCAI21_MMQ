@@ -14,6 +14,7 @@ from utils import tfidf_loading
 from simple_cnn import SimpleCNN, SimpleCNN32
 from learner import MAML
 from auto_encoder import Auto_Encoder_Model
+
 # Create BAN model
 class BAN_Model(nn.Module):
     def __init__(self, dataset, w_emb, q_emb, v_att, b_net, q_prj, c_prj, classifier, counter, args, maml_v_emb, ae_v_emb):
@@ -45,9 +46,9 @@ class BAN_Model(nn.Module):
     def forward(self, v, q):
         """Forward
 
-        v: [batch, num_objs, obj_dim]
+        v: [batch, num_objs, obj_dim] -> images, i.e. Modality.RGB
         b: [batch, num_objs, b_dim]
-        q: [batch_size, seq_length]
+        q: [batch_size, seq_length] -> text tokens, i.e. Modality.TEXT
 
         return: logits, not probs
         """
